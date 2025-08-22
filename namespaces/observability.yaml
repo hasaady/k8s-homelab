@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    env: local
+    area: observability
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: observability
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "300m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "150m"
+        memory: "256Mi"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: baseline
+  namespace: observability
+spec:
+  hard:
+    requests.cpu: "5"
+    requests.memory: 8Gi
+    limits.cpu: "10"
+    limits.memory: 12Gi
+    pods: "70"
