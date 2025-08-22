@@ -3,6 +3,55 @@
 A local, Kubernetes environment built with **Minikube** for experimenting, development, and reproducible demos.
 All manifests and Helm values are versioned here so the entire environment can be spun up on any machine.
 
+```mermaid
+flowchart TB
+    subgraph ingress[Ingress]
+        NGINX --> certManager[cert-manager]
+    end
+
+    subgraph persistence[Persistence]
+        MSSQL
+        Postgres
+        MongoDB
+        Redis
+        MinIO
+    end
+
+    subgraph messaging[Messaging]
+        Kafka
+        SchemaRegistry[Schema Registry]
+        KafkaConnect[Kafka Connect]
+        RedpandaConsole[Redpanda Console]
+        Kafka --> SchemaRegistry
+        Kafka --> KafkaConnect
+    end
+
+    subgraph observability[Observability]
+        Prometheus
+        Grafana
+        Seq
+        OTel[OTel Collector]
+    end
+
+    subgraph apps[Apps]
+        App1
+        App2
+    end
+
+    subgraph sandbox[Sandbox]
+        TestApp1
+        TestApp2
+    end
+
+    %% Connections
+    apps --> Kafka
+    apps --> Redis
+    apps --> OTel
+    apps --> Seq
+    messaging --> Prometheus
+    messaging --> OTel
+    persistence --> apps
+```
 
 ## Prerequisites
 
@@ -103,66 +152,3 @@ TLS is managed by **cert-manager** with two `ClusterIssuer`s:
 
 * One for `*.local`
 * One for `*.sandbox.local`
-
-
-## Architecture
-
-```mermaid
-flowchart TB
-    subgraph ingress[Ingress]
-        NGINX --> certManager[cert-manager]
-    end
-
-    subgraph persistence[Persistence]
-        MSSQL
-        Postgres
-        MongoDB
-        Redis
-        MinIO
-    end
-
-    subgraph messaging[Messaging]
-        Kafka
-        SchemaRegistry[Schema Registry]
-        KafkaConnect[Kafka Connect]
-        RedpandaConsole[Redpanda Console]
-        Kafka --> SchemaRegistry
-        Kafka --> KafkaConnect
-    end
-
-    subgraph observability[Observability]
-        Prometheus
-        Grafana
-        Seq
-        OTel[OTel Collector]
-    end
-
-    subgraph apps[Apps]
-        App1
-        App2
-    end
-
-    subgraph sandbox[Sandbox]
-        TestApp1
-        TestApp2
-    end
-
-    %% Connections
-    apps --> Kafka
-    apps --> Redis
-    apps --> OTel
-    apps --> Seq
-    messaging --> Prometheus
-    messaging --> OTel
-    persistence --> apps
-```
-
-
-## Workflow
-
-1. **Namespaces** → create with `ops/apply-namespaces.sh`
-2. **Ingress + cert-manager** → enable NGINX addon, install cert-manager, set up issuers
-3. **Persistence layer** → deploy MSSQL, Postgres, Mongo, Redis, MinIO
-4. **Messaging layer** → deploy Kafka (KRaft), Schema Registry, Kafka Connect, Redpanda Console
-5. **Observability** → deploy Prometheus, Grafana, Seq, OTel Collector
-6. **Apps & Sandbox** → deploy your workloads under `apps` or experiments in `sandbox`
