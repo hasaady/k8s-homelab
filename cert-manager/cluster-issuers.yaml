@@ -1,0 +1,45 @@
+# 1) A cluster-scoped self-signed issuer to mint the root CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-root
+spec:
+  selfSigned: {}
+
+---
+# 2) A namespaced Certificate that creates a root CA secret
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: local-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: local-root-ca
+  secretName: local-root-ca-secret
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: selfsigned-root
+    kind: ClusterIssuer
+
+---
+# 3) ClusterIssuer for *.local
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: local-ca-issuer
+spec:
+  ca:
+    secretName: local-root-ca-secret
+
+---
+# 4) ClusterIssuer for *.sandbox.local
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: sandbox-ca-issuer
+spec:
+  ca:
+    secretName: local-root-ca-secret
