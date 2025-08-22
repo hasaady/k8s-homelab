@@ -3,7 +3,6 @@
 A local, Kubernetes environment built with **Minikube** for experimenting, development, and reproducible demos.
 All manifests and Helm values are versioned here so the entire environment can be spun up on any machine.
 
-## Architecture
 
 ```mermaid
 flowchart TB
@@ -58,6 +57,7 @@ flowchart TB
 ## Quick Start
 
 **Prerequisites**
+
 Make sure you have the following installed locally:
 
 * [Minikube](https://minikube.sigs.k8s.io/docs/start/) ≥ 1.33
