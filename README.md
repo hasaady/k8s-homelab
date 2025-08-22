@@ -3,7 +3,6 @@
 A local, Kubernetes environment built with **Minikube** for experimenting, development, and reproducible demos.
 All manifests and Helm values are versioned here so the entire environment can be spun up on any machine.
 
----
 
 ## Prerequisites
 
@@ -16,10 +15,8 @@ Make sure you have the following installed locally:
 
 Optional (but recommended):
 * [Aptakube](https://aptakube.com/) — **recommended UI** for managing namespaces and resources
-* [jq](https://stedolan.github.io/jq/) — for JSON inspection
 * [mkcert](https://github.com/FiloSottile/mkcert) — if you want to generate a trusted local CA instead of using cert-manager’s self-signed CA
 
----
 
 ## Quick Start
 
@@ -57,7 +54,6 @@ Optional (but recommended):
    test.sandbox.local" | sudo tee -a /etc/hosts
    ```
 
----
 
 ## Repository Structure
 
@@ -82,7 +78,6 @@ k8s-homelab/
 └── ops/                 # Helper scripts (e.g., apply-namespaces.sh, CI/CD automation)
 ```
 
----
 
 ## Namespaces & Roles
 
@@ -95,7 +90,6 @@ k8s-homelab/
 | **apps**          | Application workloads (stable demos) | Your microservices, APIs, test applications                                         |
 | **sandbox**       | Experiments / junkyard               | Throwaway workloads, canaries, PoCs, test data. Accessible under `*.sandbox.local`. |
 
----
 
 ## Hostname Conventions
 
@@ -110,7 +104,6 @@ TLS is managed by **cert-manager** with two `ClusterIssuer`s:
 * One for `*.local`
 * One for `*.sandbox.local`
 
----
 
 ## Architecture
 
@@ -164,23 +157,6 @@ flowchart TB
     persistence --> apps
 ```
 
----
-
-## Namespaces as Layers (High-Level View)
-
-```mermaid
-flowchart TB
-    ingress([Ingress\nNGINX, cert-manager]):::layer --> persistence([Persistence\nMSSQL, Postgres, MongoDB, Redis, MinIO]):::layer
-    ingress --> messaging([Messaging\nKafka, Connect, Schema Registry, Redpanda Console]):::layer
-    messaging --> observability([Observability\nPrometheus, Grafana, Seq, OTel]):::layer
-    persistence --> apps([Apps\nYour Services]):::layer
-    messaging --> apps
-    apps --> sandbox([Sandbox\nExperiments, PoCs]):::layer
-
-    classDef layer fill=#222,stroke=#888,color=#fff,rx=8,ry=8
-```
-
----
 
 ## Workflow
 
