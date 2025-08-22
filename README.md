@@ -55,9 +55,9 @@ flowchart TB
     persistence --> apps
 ```
 
+## Quick Start
 
-## Prerequisites
-
+**Prerequisites**
 Make sure you have the following installed locally:
 
 * [Minikube](https://minikube.sigs.k8s.io/docs/start/) ≥ 1.33
@@ -68,9 +68,6 @@ Make sure you have the following installed locally:
 Optional (but recommended):
 * [Aptakube](https://aptakube.com/) — **recommended UI** for managing namespaces and resources
 * [mkcert](https://github.com/FiloSottile/mkcert) — if you want to generate a trusted local CA instead of using cert-manager’s self-signed CA
-
-
-## Quick Start
 
 1. **Start Minikube with enough resources:**
 
