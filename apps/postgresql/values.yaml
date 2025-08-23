@@ -1,0 +1,35 @@
+# Bitnami PostgreSQL — single instance, LoadBalancer for host access via `minikube tunnel`
+architecture: standalone
+
+global:
+  storageClass: standard
+
+volumePermissions:
+  enabled: true
+
+primary:
+  persistence:
+    enabled: true
+    size: 10Gi
+  service:
+    type: LoadBalancer
+    ports:
+      postgresql: 5432
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  podSecurityContext:
+    fsGroup: 1001
+  containerSecurityContext:
+    runAsUser: 1001
+
+auth:
+  enablePostgresUser: true
+  postgresPassword: "Aa@12341234"   # your password
+
+tls:
+  enabled: false

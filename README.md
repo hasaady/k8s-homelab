@@ -54,9 +54,7 @@ flowchart TB
     persistence --> apps
 ```
 
-## Quick Start
-
-**Prerequisites**
+## Prerequisites
 
 Make sure you have the following installed locally:
 
@@ -65,9 +63,14 @@ Make sure you have the following installed locally:
 * [Helm](https://helm.sh/docs/intro/install/) ≥ 3.14
 * [Git](https://git-scm.com/) ≥ 2.40
 
-Optional (but recommended):
-* [Aptakube](https://aptakube.com/) — **recommended UI** for managing namespaces and resources
+Optional (recommended):
+
+* [Aptakube](https://aptakube.com/) — **preferred UI** for managing namespaces and resources
 * [mkcert](https://github.com/FiloSottile/mkcert) — if you want to generate a trusted local CA instead of using cert-manager’s self-signed CA
+
+---
+
+## Quick Start
 
 1. **Start Minikube with enough resources:**
 
@@ -94,37 +97,57 @@ Optional (but recommended):
    minikube addons enable ingress
    ```
 
-5. **Add hosts entries (replace with your Minikube IP):**
+5. **Install cert-manager (Helm, with CRDs):**
 
    ```bash
-   echo "$(minikube ip) kafka.local schema.local connect.local redpanda.local \
-   seq.local grafana.local prometheus.local otel.local \
-   minio.local mongo.local pg.local mssql.local redis.local \
-   test.sandbox.local" | sudo tee -a /etc/hosts
+   ./ops/install-cert-manager.sh
    ```
+
+6. **Create cluster issuers:**
+
+   ```bash
+   kubectl apply -f cert-manager/cluster-issuers.yaml
+   kubectl get clusterissuer
+   ```
+
+   You should see `local-ca-issuer` and `sandbox-ca-issuer` as **Ready**.
+
+7. **Add hosts entries (replace with your Minikube IP):**
+
+   ```bash
+   sudo nano /etc/hosts
+   ```
+
+   Add this line:
+
+   ```
+   192.168.49.2 kafka.local schema-registry.local kafka-connect.local redpanda.local grafana.local prometheus.local otel.local seq.local minio.local mongo.local pg.local mssql.local redis.local
+   ```
+
+---
 
 
 ## Repository Structure
 
 ```
 k8s-homelab/
-├── namespaces/          # Namespace manifests (ingress, persistence, messaging, observability, apps, sandbox)
-├── ingress/             # Ingress rules (per service)
-├── cert-manager/        # Issuers, self-signed CA, TLS configs
-├── apps/                # Service deployments (Kafka, Postgres, etc.)
-│   ├── kafka/
-│   ├── kafka-connect/
-│   ├── schema-registry/
-│   ├── redpanda-console/
-│   ├── redis/
-│   ├── minio/
-│   ├── mssql/
-│   ├── postgresql/
-│   ├── mongodb/
-│   ├── seq/
-│   ├── prometheus-grafana/
-│   └── otel-collector/
-└── ops/                 # Helper scripts (e.g., apply-namespaces.sh, CI/CD automation)
+├── namespaces/ # Namespace manifests (ingress, persistence, messaging, observability, apps, sandbox)
+├── ingress/ # Ingress rules (per service)
+├── cert-manager/ # Issuers, self-signed CA, TLS configs
+├── apps/ # Service deployments (Kafka, Postgres, etc.)
+│ ├── kafka/
+│ ├── kafka-connect/
+│ ├── schema-registry/
+│ ├── redpanda-console/
+│ ├── redis/
+│ ├── minio/
+│ ├── mssql/
+│ ├── postgresql/
+│ ├── mongodb/
+│ ├── seq/
+│ ├── prometheus-grafana/
+│ └── otel-collector/
+└── ops/ # Helper scripts (apply-namespaces.sh, install-cert-manager.sh, CI/CD automation)
 ```
 
 
