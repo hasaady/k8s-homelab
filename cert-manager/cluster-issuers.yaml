@@ -1,4 +1,4 @@
-# 1) A cluster-scoped self-signed issuer to mint the root CA
+# 1) Root self-signed issuer (cluster-scoped)
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -7,16 +7,16 @@ spec:
   selfSigned: {}
 
 ---
-# 2) A namespaced Certificate that creates a root CA secret
+# 2) Root CA certificate & secret in cert-manager namespace
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: local-root-ca
+  name: atelier-root-ca
   namespace: cert-manager
 spec:
   isCA: true
-  commonName: local-root-ca
-  secretName: local-root-ca-secret
+  commonName: atelier-root-ca
+  secretName: atelier-root-ca-secret
   privateKey:
     algorithm: RSA
     size: 2048
@@ -25,21 +25,11 @@ spec:
     kind: ClusterIssuer
 
 ---
-# 3) ClusterIssuer for *.local
+# 3) ClusterIssuer signed by the root CA for atelier.local
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: local-ca-issuer
+  name: atelier-ca-issuer
 spec:
   ca:
-    secretName: local-root-ca-secret
-
----
-# 4) ClusterIssuer for *.sandbox.local
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: sandbox-ca-issuer
-spec:
-  ca:
-    secretName: local-root-ca-secret
+    secretName: atelier-root-ca-secret
