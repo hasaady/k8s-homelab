@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: atelier
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/hasaady/k8s-homelab.git
+      revision: main
+      directories:
+        - path: services/*/*   # picks up services/<namespace>/<service>
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/<youruser>/k8s-atelier.git
+        targetRevision: main
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path[1]}}'  # uses second element in path (namespace)
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
