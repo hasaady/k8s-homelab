@@ -1,8 +1,7 @@
 # k8s-homelab
 
-A local, Kubernetes environment built with **Minikube** for experimenting, development, and reproducible demos.
-All manifests and Helm values are versioned here so the entire environment can be spun up on any machine.
-
+A local Kubernetes **dev environment** built with **Minikube** for experimenting, development, and reproducible demos.  
+All manifests and Helm values are versioned here so the entire environment can be spun up on any machine with a single script.
 
 ```mermaid
 flowchart TB
@@ -52,7 +51,7 @@ flowchart TB
     messaging --> Prometheus
     messaging --> OTel
     persistence --> apps
-```
+````
 
 ## Prerequisites
 
@@ -62,116 +61,109 @@ Make sure you have the following installed locally:
 * [kubectl](https://kubernetes.io/docs/tasks/tools/) ≥ 1.29
 * [Helm](https://helm.sh/docs/intro/install/) ≥ 3.14
 * [Git](https://git-scm.com/) ≥ 2.40
+* [htpasswd](https://httpd.apache.org/docs/current/programs/htpasswd.html) (for Argo CD password hashing)
 
 Optional (recommended):
 
 * [Aptakube](https://aptakube.com/) — **preferred UI** for managing namespaces and resources
-* [mkcert](https://github.com/FiloSottile/mkcert) — if you want to generate a trusted local CA instead of using cert-manager’s self-signed CA
+* [mkcert](https://github.com/FiloSottile/mkcert) — trusted local CA alternative
 
----
 
 ## Quick Start
 
-1. **Start Minikube with enough resources:**
+1. **Clone the repo:**
 
    ```bash
-   minikube start --cpus=6 --memory=12288 --disk-size=40g --driver=docker
-   ```
-
-2. **Clone the repo:**
-
-   ```bash
-   git clone <your-repo-url> k8s-homelab
+   git clone https://github.com/hasaady/k8s-homelab.git
    cd k8s-homelab
    ```
 
-3. **Apply namespaces:**
+1. **Run the bootstrap script:**
 
    ```bash
-   ./ops/apply-namespaces.sh
+   chmod +x /bootstrap.sh
+   ./bootstrap.sh
    ```
 
-4. **Enable NGINX Ingress addon:**
+   This script will:
 
-   ```bash
-   minikube addons enable ingress
-   ```
+   * Start Minikube with resources
+   * Enable addons (`ingress`, `storage-provisioner`)
+   * Apply namespaces (`ingress`, `persistence`, `messaging`, `observability`, `apps`, `sandbox`)
+   * Install cert-manager
+   * Apply cluster issuers (`atelier-ca-issuer`)
+   * Install Argo CD and patch it for `/argocd`
+   * Apply ingress rules (`atelier.local`)
+   * Apply Argo CD ApplicationSet (`argocd/atelier-appset.yaml`)
+   * Add `atelier.local` to `/etc/hosts`
+   * Set a custom Argo CD admin password from the script (`ARGOCD_PASS`)
 
-5. **Install cert-manager (Helm, with CRDs):**
+4. **Open Argo CD:**
 
-   ```bash
-   ./ops/install-cert-manager.sh
-   ```
+   * URL: [https://atelier.local/argocd](https://atelier.local/argocd)
+   * Username: `admin`
+   * Password: set in `ops/bootstrap.sh` (via `ARGOCD_PASS` variable)
 
-6. **Create cluster issuers:**
+5. **Sync services in Argo CD UI:**
 
-   ```bash
-   kubectl apply -f cert-manager/cluster-issuers.yaml
-   kubectl get clusterissuer
-   ```
-
-   You should see `local-ca-issuer` and `sandbox-ca-issuer` as **Ready**.
-
-7. **Add hosts entries (replace with your Minikube IP):**
-
-   ```bash
-   sudo nano /etc/hosts
-   ```
-
-   Add this line:
-
-   ```
-   192.168.49.2 kafka.local schema-registry.local kafka-connect.local redpanda.local grafana.local prometheus.local otel.local seq.local minio.local mongo.local pg.local mssql.local redis.local
-   ```
-
----
+   * You’ll see one app per service (`postgresql`, `mongodb`, `redis`, `minio`, `mssql`, `kafka`, `schema-registry`, `kafka-connect`, `redpanda-console`, `prometheus`, `grafana`, `seq`, `otel-collector`, etc.)
+   * Click **Sync All** to deploy.
 
 
 ## Repository Structure
 
 ```
-k8s-homelab/
-├── namespaces/ # Namespace manifests (ingress, persistence, messaging, observability, apps, sandbox)
-├── ingress/ # Ingress rules (per service)
-├── cert-manager/ # Issuers, self-signed CA, TLS configs
-├── apps/ # Service deployments (Kafka, Postgres, etc.)
-│ ├── kafka/
-│ ├── kafka-connect/
-│ ├── schema-registry/
-│ ├── redpanda-console/
-│ ├── redis/
-│ ├── minio/
-│ ├── mssql/
-│ ├── postgresql/
-│ ├── mongodb/
-│ ├── seq/
-│ ├── prometheus-grafana/
-│ └── otel-collector/
-└── ops/ # Helper scripts (apply-namespaces.sh, install-cert-manager.sh, CI/CD automation)
+k8s-atelier/
+├── argocd/
+│   ├── atelier-appset.yaml      # ApplicationSet for all services
+├── cert-manager/
+│   └── cluster-issuers.yaml     # self-signed CA + atelier issuer
+├── ingress/
+│   └── atelier.yaml             # unified ingress (https://atelier.local/*)
+├── namespaces/                  # Namespace manifests
+├── services/                    # Services grouped by namespace
+│   ├── persistence/ (Postgres, MongoDB, Redis, MinIO, MSSQL)
+│   ├── messaging/ (Kafka, Schema Registry, Kafka Connect, Redpanda Console)
+│   ├── observability/ (Prometheus, Grafana, Seq, OTel Collector)
+│   ├── apps/ (your microservices)
+│   └── sandbox/ (experiments)
+└── ops/
+    ├── bootstrap.sh             # full cluster bootstrap
+    ├── install-cert-manager.sh  # helper for cert-manager
+    └── apply-namespaces.sh      # helper for namespaces
 ```
 
 
 ## Namespaces & Roles
 
-| Namespace         | Purpose                              | Services / Components                                                               |
-| ----------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
-| **ingress**       | Entry, TLS, traffic routing          | NGINX Ingress Controller, cert-manager, Ingress resources                           |
-| **persistence**   | Databases & storage                  | MSSQL, PostgreSQL, MongoDB, Redis, MinIO                                            |
-| **messaging**     | Event streaming & integration layer  | Kafka (KRaft), Schema Registry, Kafka Connect, Redpanda Console                     |
-| **observability** | Metrics, tracing, logging            | Prometheus, Grafana, Seq, OpenTelemetry Collector                                   |
-| **apps**          | Application workloads (stable demos) | Your microservices, APIs, test applications                                         |
-| **sandbox**       | Experiments / junkyard               | Throwaway workloads, canaries, PoCs, test data. Accessible under `*.sandbox.local`. |
+| Namespace         | Purpose                              | Services / Components                                           |
+| ----------------- | ------------------------------------ | --------------------------------------------------------------- |
+| **ingress**       | Entry, TLS, traffic routing          | NGINX Ingress Controller, cert-manager, Ingress resources       |
+| **persistence**   | Databases & storage                  | MSSQL, PostgreSQL, MongoDB, Redis, MinIO                        |
+| **messaging**     | Event streaming & integration layer  | Kafka (KRaft), Schema Registry, Kafka Connect, Redpanda Console |
+| **observability** | Metrics, tracing, logging            | Prometheus, Grafana, Seq, OpenTelemetry Collector               |
+| **apps**          | Application workloads (stable demos) | Your microservices, APIs, test applications                     |
+| **sandbox**       | Experiments / junkyard               | Throwaway workloads, PoCs, test data                            |
 
 
-## Hostname Conventions
+## Hostname Convention
 
-* Core stack: `*.local`
-  * Examples: `kafka.local`, `schema.local`, `grafana.local`
-  
-* Sandbox workloads: `*.sandbox.local`
-  * Examples: `test.sandbox.local`, `kcat.sandbox.local`
+* Single root hostname: **`atelier.local`**
+* All services exposed via paths:
 
-TLS is managed by **cert-manager** with two `ClusterIssuer`s:
+  * `https://atelier.local/argocd`
+  * `https://atelier.local/grafana`
+  * `https://atelier.local/prometheus`
+  * `https://atelier.local/seq`
+  * `https://atelier.local/redpanda`
+  * `https://atelier.local/minio`
+  * … etc.
 
-* One for `*.local`
-* One for `*.sandbox.local`
+TLS is handled by **cert-manager** with the single `atelier-ca-issuer`.
+
+
+## Argo CD Password
+
+* The bootstrap script sets your admin password automatically via `ARGOCD_PASS`.
+* You can edit `ops/bootstrap.sh` to change it.
+* No need to grab the initial secret anymore.
