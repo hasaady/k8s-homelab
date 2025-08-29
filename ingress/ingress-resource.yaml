@@ -1,0 +1,81 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atelier
+  namespace: ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: local-ca-issuer
+spec:
+  rules:
+  - host: atelier.local
+    http:
+      paths:
+      # Argo CD
+      - path: /argocd
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
+      # Grafana
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 80
+      # Prometheus
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-server
+            port:
+              number: 80
+      # Seq
+      - path: /seq
+        pathType: Prefix
+        backend:
+          service:
+            name: seq
+            port:
+              number: 80
+      # Redpanda Console
+      - path: /redpanda
+        pathType: Prefix
+        backend:
+          service:
+            name: redpanda-console
+            port:
+              number: 8080
+      # Kafka Connect (REST API)
+      - path: /kafka-connect
+        pathType: Prefix
+        backend:
+          service:
+            name: kafka-connect
+            port:
+              number: 8083
+      # Schema Registry
+      - path: /schema-registry
+        pathType: Prefix
+        backend:
+          service:
+            name: schema-registry
+            port:
+              number: 8081
+      # MinIO Console
+      - path: /minio
+        pathType: Prefix
+        backend:
+          service:
+            name: minio
+            port:
+              number: 9001
+  tls:
+  - hosts:
+    - atelier.local
+    secretName: atelier-tls
