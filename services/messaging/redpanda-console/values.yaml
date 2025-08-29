@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda-console
+  namespace: messaging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda-console
+  template:
+    metadata:
+      labels:
+        app: redpanda-console
+    spec:
+      containers:
+      - name: redpanda-console
+        image: docker.redpanda.com/redpandadata/console:latest
+        ports:
+          - containerPort: 8080
+        env:
+          # Kafka broker(s)
+          - name: KAFKA_BROKERS
+            value: "kafka:9094"
+          # Schema Registry
+          - name: SCHEMAREGISTRY_URLS
+            value: "http://schema-registry:8081"
+          # Kafka Connect (optional)
+          - name: CONNECT_CLUSTERS_NAME
+            value: "local-connect"
+          - name: CONNECT_CLUSTERS_URL
+            value: "http://kafka-connect:8083"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-console
+  namespace: messaging
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: redpanda-console

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seq
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seq
+  template:
+    metadata:
+      labels:
+        app: seq
+    spec:
+      containers:
+      - name: seq
+        image: datalust/seq:latest
+        ports:
+          - containerPort: 80
+          - containerPort: 5341
+        env:
+          - name: ACCEPT_EULA
+            value: "Y"
+        volumeMounts:
+          - mountPath: /data
+            name: seq-data
+      volumes:
+      - name: seq-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seq
+  namespace: observability
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 5341
+      targetPort: 5341
+    - port: 80
+      targetPort: 80
+  selector:
+    app: seq

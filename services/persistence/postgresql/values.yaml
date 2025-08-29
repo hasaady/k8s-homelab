@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgresql
+  namespace: persistence
+spec:
+  serviceName: postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:16
+        ports:
+          - containerPort: 5432
+        env:
+          - name: POSTGRES_PASSWORD
+            value: "Aa@12341234"
+        volumeMounts:
+          - name: pg-data
+            mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: pg-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: persistence
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgresql

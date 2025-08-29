@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mssql
+  namespace: persistence
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mssql
+  template:
+    metadata:
+      labels:
+        app: mssql
+    spec:
+      containers:
+      - name: mssql
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        ports:
+          - containerPort: 1433
+        env:
+          - name: ACCEPT_EULA
+            value: "Y"
+          - name: MSSQL_SA_PASSWORD
+            value: "Aa@12341234"
+          - name: MSSQL_AGENT_ENABLED
+            value: "true"
+        volumeMounts:
+          - mountPath: /var/opt/mssql
+            name: mssql-data
+      volumes:
+      - name: mssql-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mssql
+  namespace: persistence
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 1433
+      targetPort: 1433
+  selector:
+    app: mssql
