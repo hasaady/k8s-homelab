@@ -47,27 +47,25 @@ Optional (recommended):
     8. Applies **App-of-Apps** root application, pointing ArgoCD to `workloads/`.
 
 3. **Argo CD Password**
-
-* The bootstrap script sets your admin password automatically via `ARGOCD_PASS`.
-* You can edit `ops/bootstrap.sh` to change it.
-* No need to grab the initial secret anymore.
+    * The bootstrap script sets your admin password automatically via `ARGOCD_PASS`.
+    * You can edit `ops/bootstrap.sh` to change it.
+    * No need to grab the initial secret anymore.
 
 4. **Access**
-
-1. Run tunnel in a separate terminal:
-```bash
-    minikube tunnel
+    1. Run tunnel in a separate terminal:
+    ```bash
+        minikube tunnel
     ```
-2. Open ArgoCD:
-    - URL: [https://localhost/argocd](https://localhost/argocd)
-    - User: `admin`
-    - Password: whatever you configured via bcrypt in `argocd/values.yaml` 
-3. Future apps:
-    - Grafana → `https://localhost/grafana`
-    - Seq → `https://localhost/seq`
-    - etc.
+    2. Open ArgoCD:
+        - URL: [https://localhost/argocd](https://localhost/argocd)
+        - User: `admin`
+        - Password: whatever you configured via bcrypt in `argocd/values.yaml` 
+    3. Future apps:
+        - Grafana → `https://localhost/grafana`
+        - Seq → `https://localhost/seq`
+        - etc.
 
-TLS is handled by **cert-manager** with the single `localhost-ca-issuer`.
+    TLS is handled by **cert-manager** with the single `localhost-ca-issuer`.
 
 
 ```mermaid
@@ -130,7 +128,7 @@ flowchart TB
     WF --> apps
 ````
 
-### Key design choices:
+### Key Design Choices:
 - **Path-based ingress** → everything is accessible under `https://localhost/<app>` (e.g. `/argocd`, `/grafana`).
 - **Cert-manager self-signed issuer** → single `localhost-cert` shared by all ingresses.
 - **ArgoCD App-of-Apps pattern** → GitOps deploys workloads from the `workloads/` folder.
