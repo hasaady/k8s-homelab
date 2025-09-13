@@ -3,56 +3,6 @@
 A local Kubernetes **dev environment** built with **Minikube** for experimenting, development, and reproducible demos.  
 All manifests and Helm values are versioned here so the entire environment can be spun up on any machine with a single script.
 
-```mermaid
-flowchart TB
-    subgraph ingress[Ingress]
-        NGINX --> certManager[cert-manager]
-    end
-
-    subgraph persistence[Persistence]
-        MSSQL
-        Postgres
-        MongoDB
-        Redis
-        MinIO
-    end
-
-    subgraph messaging[Messaging]
-        Kafka
-        SchemaRegistry[Schema Registry]
-        KafkaConnect[Kafka Connect]
-        RedpandaConsole[Redpanda Console]
-        Kafka --> SchemaRegistry
-        Kafka --> KafkaConnect
-    end
-
-    subgraph observability[Observability]
-        Prometheus
-        Grafana
-        Seq
-        OTel[OTel Collector]
-    end
-
-    subgraph apps[Apps]
-        App1
-        App2
-    end
-
-    subgraph sandbox[Sandbox]
-        TestApp1
-        TestApp2
-    end
-
-    %% Connections
-    apps --> Kafka
-    apps --> Redis
-    apps --> OTel
-    apps --> Seq
-    messaging --> Prometheus
-    messaging --> OTel
-    persistence --> apps
-````
-
 ## Prerequisites
 
 Make sure you have the following installed locally:
@@ -65,8 +15,7 @@ Make sure you have the following installed locally:
 
 Optional (recommended):
 
-* [Aptakube](https://aptakube.com/) — **preferred UI** for managing namespaces and resources
-* [mkcert](https://github.com/FiloSottile/mkcert) — trusted local CA alternative
+* [Headlamps](https://headlamp.dev/) — **preferred UI** for managing namespaces and resources
 
 
 ## Quick Start
@@ -78,92 +27,136 @@ Optional (recommended):
    cd k8s-homelab
    ```
 
-1. **Run the bootstrap script:**
+2. **Run the bootstrap script:**
 
    ```bash
-   chmod +x /bootstrap.sh
    ./bootstrap.sh
    ```
 
    This script will:
+    1. Starts **Minikube** with Docker driver.
+    2. Enables **metrics-server** addon.
+    3. Applies **namespaces**.
+    4. Installs **cert-manager** (Bitnami Helm).
+        - Waits until ready, then applies **ClusterIssuer + localhost certificate**.
+    5. Installs **NGINX Ingress Controller** (Bitnami Helm).
+        - Waits until ready.
+    6. Installs **ArgoCD** (Bitnami Helm) with a custom bcrypt admin password.
+        - Waits until ready.
+    7. Applies **ArgoCD ingress** (`/argocd`).
+    8. Applies **App-of-Apps** root application, pointing ArgoCD to `workloads/`.
 
-   * Start Minikube with resources
-   * Enable addons (`ingress`, `storage-provisioner`)
-   * Apply namespaces (`ingress`, `persistence`, `messaging`, `observability`, `apps`, `sandbox`)
-   * Install cert-manager
-   * Apply cluster issuers (`atelier-ca-issuer`)
-   * Install Argo CD and patch it for `/argocd`
-   * Apply ingress rules (`atelier.local`)
-   * Apply Argo CD ApplicationSet (`argocd/atelier-appset.yaml`)
-   * Add `atelier.local` to `/etc/hosts`
-   * Set a custom Argo CD admin password from the script (`ARGOCD_PASS`)
-
-4. **Open Argo CD:**
-
-   * URL: [https://atelier.local/argocd](https://atelier.local/argocd)
-   * Username: `admin`
-   * Password: set in `ops/bootstrap.sh` (via `ARGOCD_PASS` variable)
-
-5. **Sync services in Argo CD UI:**
-
-   * You’ll see one app per service (`postgresql`, `mongodb`, `redis`, `minio`, `mssql`, `kafka`, `schema-registry`, `kafka-connect`, `redpanda-console`, `prometheus`, `grafana`, `seq`, `otel-collector`, etc.)
-   * Click **Sync All** to deploy.
-
-
-## Repository Structure
-
-```
-k8s-atelier/
-├── argocd/
-│   ├── atelier-appset.yaml      # ApplicationSet for all services
-├── cert-manager/
-│   └── cluster-issuers.yaml     # self-signed CA + atelier issuer
-├── ingress/
-│   └── atelier.yaml             # unified ingress (https://atelier.local/*)
-├── namespaces/                  # Namespace manifests
-├── services/                    # Services grouped by namespace
-│   ├── persistence/ (Postgres, MongoDB, Redis, MinIO, MSSQL)
-│   ├── messaging/ (Kafka, Schema Registry, Kafka Connect, Redpanda Console)
-│   ├── observability/ (Prometheus, Grafana, Seq, OTel Collector)
-│   ├── apps/ (your microservices)
-│   └── sandbox/ (experiments)
-└── ops/
-    ├── bootstrap.sh             # full cluster bootstrap
-    ├── install-cert-manager.sh  # helper for cert-manager
-    └── apply-namespaces.sh      # helper for namespaces
-```
-
-
-## Namespaces & Roles
-
-| Namespace         | Purpose                              | Services / Components                                           |
-| ----------------- | ------------------------------------ | --------------------------------------------------------------- |
-| **ingress**       | Entry, TLS, traffic routing          | NGINX Ingress Controller, cert-manager, Ingress resources       |
-| **persistence**   | Databases & storage                  | MSSQL, PostgreSQL, MongoDB, Redis, MinIO                        |
-| **messaging**     | Event streaming & integration layer  | Kafka (KRaft), Schema Registry, Kafka Connect, Redpanda Console |
-| **observability** | Metrics, tracing, logging            | Prometheus, Grafana, Seq, OpenTelemetry Collector               |
-| **apps**          | Application workloads (stable demos) | Your microservices, APIs, test applications                     |
-| **sandbox**       | Experiments / junkyard               | Throwaway workloads, PoCs, test data                            |
-
-
-## Hostname Convention
-
-* Single root hostname: **`atelier.local`**
-* All services exposed via paths:
-
-  * `https://atelier.local/argocd`
-  * `https://atelier.local/grafana`
-  * `https://atelier.local/prometheus`
-  * `https://atelier.local/seq`
-  * `https://atelier.local/redpanda`
-  * `https://atelier.local/minio`
-  * … etc.
-
-TLS is handled by **cert-manager** with the single `atelier-ca-issuer`.
-
-
-## Argo CD Password
+3. **Argo CD Password**
 
 * The bootstrap script sets your admin password automatically via `ARGOCD_PASS`.
 * You can edit `ops/bootstrap.sh` to change it.
 * No need to grab the initial secret anymore.
+
+4. **Access**
+
+1. Run tunnel in a separate terminal:
+```bash
+    minikube tunnel
+    ```
+2. Open ArgoCD:
+    - URL: [https://localhost/argocd](https://localhost/argocd)
+    - User: `admin`
+    - Password: whatever you configured via bcrypt in `argocd/values.yaml` 
+3. Future apps:
+    - Grafana → `https://localhost/grafana`
+    - Seq → `https://localhost/seq`
+    - etc.
+
+TLS is handled by **cert-manager** with the single `localhost-ca-issuer`.
+
+
+```mermaid
+flowchart TB
+
+    subgraph Minikube["Cluster"]
+        subgraph ingress["Ingress"]
+            NGINX["NGINX Ingress Controller"]
+        end
+
+        subgraph cert["Cert-Manager"]
+            CM["cert-manager"]
+            CI["ClusterIssuer: selfsigned-root"]
+            CERT["Certificate: localhost-cert"]
+        end
+
+        subgraph gitops["ArgoCD"]
+            ACD["ArgoCD Server"]
+            APP["App-of-Apps Root Application"]
+            WF["workloads/ (GitOps folder)"]
+        end
+
+        subgraph persistence["Persistence"]
+            DB["Postgres / MSSQL / MongoDB / Redis / MinIO"]
+        end
+
+        subgraph kafka["Apache Kafka"]
+            KAFKA["Kafka (KRaft)"]
+            CONNECT["Kafka Connect + Plugins"]
+            SR["Schema Registry"]
+            UI["Kafka UI"]
+        end
+
+        subgraph obs["Observability"]
+            PROM["Prometheus"]
+            GRAF["Grafana"]
+            SEQ["Seq"]
+            OTEL["OpenTelemetry Collector"]
+        end
+
+        subgraph apps["Apps"]
+            APP1["app1"]
+        end
+    end
+
+    %% Relationships
+    NGINX -->|Ingress Routes| ACD
+    NGINX -->|Ingress Routes| GRAF
+    NGINX -->|Ingress Routes| UI
+    NGINX -->|Ingress Routes| APP1
+
+    CI --> CERT
+    CERT -.-> NGINX
+
+    ACD --> APP
+    APP --> WF
+    WF --> persistence
+    WF --> kafka
+    WF --> obs
+    WF --> apps
+````
+
+### Key design choices:
+- **Path-based ingress** → everything is accessible under `https://localhost/<app>` (e.g. `/argocd`, `/grafana`).
+- **Cert-manager self-signed issuer** → single `localhost-cert` shared by all ingresses.
+- **ArgoCD App-of-Apps pattern** → GitOps deploys workloads from the `workloads/` folder.
+- **Namespaces** split infra vs. workloads for clean isolation.
+
+
+##  Repository Structure
+```
+bootstrap.sh # one-click cluster bootstrap  
+namespaces/ # declarative namespace manifests  
+    persistence.yaml  
+    apache-kafka.yaml  
+    observability.yaml  
+    apps.yaml  
+cert-manager/ # TLS management  
+    values.yaml  
+    cluster-issuer.yaml # ClusterIssuer + localhost cert  
+argocd/ # GitOps setup  
+    values.yaml # Helm values (bcrypt admin password, configs)  
+    app-of-apps.yaml # Root ArgoCD Application  
+    ingress.yaml # ArgoCD ingress (/argocd)  
+nginx/ # Helm values for ingress-nginx  
+    values.yaml  
+workloads/ # GitOps workloads (managed by ArgoCD)  
+    persistence/  
+    apache-kafka/  
+    observability/  
+    apps/
+````
