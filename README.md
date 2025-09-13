@@ -106,12 +106,7 @@ Optional (recommended):
     7. Applies **ArgoCD ingress** (`/argocd`).
     8. Applies **App-of-Apps** root application, pointing ArgoCD to `workloads/`.
 
-3. **Argo CD Password**
-    * The bootstrap script sets your admin password automatically via `ARGOCD_PASS`.
-    * You can edit `ops/bootstrap.sh` to change it.
-    * No need to grab the initial secret anymore.
-
-4. **Access**
+3. **Access**
     1. Run tunnel in a separate terminal:
     ```bash
         minikube tunnel
