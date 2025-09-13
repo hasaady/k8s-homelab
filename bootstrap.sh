@@ -1,78 +1,79 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-echo "🚀 Starting Atelier bootstrap..."
+# ==========================================
+# Kubernetes Home Lab Bootstrap Script
+# ==========================================
+
+# Helper: wait for all deployments in a namespace
+wait_for_namespace_deploys() {
+  local namespace=$1
+  echo "⏳ Waiting for all deployments in namespace/$namespace..."
+  kubectl rollout status deployment -n "$namespace" --timeout=180s
+}
 
 # 1. Start Minikube
-minikube start --cpus=6 --memory=12288 --disk-size=40g --driver=docker
+echo "🚀 Starting Minikube..."
+minikube start --driver=docker
 
-# 2. Enable addons
-minikube addons enable ingress
-minikube addons enable storage-provisioner
+# 2. Enable Minikube addons
+echo "⚙️  Enabling Minikube addons..."
+minikube addons enable metrics-server
 
-# 3. Apply namespaces
-echo "📦 Applying namespaces..."
+# 3. Create namespaces
+echo "📂 Applying namespaces..."
 kubectl apply -f namespaces/
 
-# 4. Install cert-manager (Helm with CRDs)
-echo "🔐 Installing cert-manager..."
-helm repo add jetstack https://charts.jetstack.io
+# 4. Install Cert-Manager (Bitnami via Helm)
+echo "🔒 Installing Cert-Manager..."
+helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 
-# Install cert-manager with CRDs into its own namespace
-helm upgrade --install cert-manager jetstack/cert-manager \
+helm upgrade --install cert-manager bitnami/cert-manager \
   --namespace cert-manager \
   --create-namespace \
-  --set installCRDs=true
+  -f cert-manager/values.yaml
 
-kubectl -n cert-manager rollout status deploy/cert-manager -w
-kubectl -n cert-manager rollout status deploy/cert-manager-webhook -w
-kubectl -n cert-manager rollout status deploy/cert-manager-cainjector -w
+# 5. Wait for Cert-Manager before applying ClusterIssuer
+wait_for_namespace_deploys cert-manager
 
-# 5. Apply ClusterIssuers
-echo "🔐 Applying cluster issuers..."
-kubectl apply -f cert-manager/cluster-issuers.yaml
+echo "🔑 Applying ClusterIssuer and localhost Certificate..."
+kubectl apply -f cert-manager/cluster-issuer.yaml
 
-# 6. Deploy Argo CD (manifests)
-echo "🎛️ Deploying Argo CD..."
-kubectl create namespace argocd || true
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# 6. Install NGINX Ingress Controller (Bitnami via Helm)
+echo "🌐 Installing NGINX Ingress Controller..."
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
 
-# 7. Patch Argo CD server to run under /argocd
-kubectl -n argocd patch deployment argocd-server \
-  --type=json \
-  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--rootpath=/argocd"}]'
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  -f nginx/values.yaml
 
-# 8. Apply Ingress for Argo CD + unified atelier ingress
-echo "🌐 Applying ingress resources..."
-kubectl apply -f ingress/
+# 7. Wait for ingress-nginx before applying ArgoCD ingress
+wait_for_namespace_deploys ingress-nginx
 
-# 9. Apply ApplicationSet for atelier
-echo "📂 Applying Argo CD ApplicationSet..."
-kubectl apply -f argocd/atelier-appset.yaml -n argocd
+# 8. Install Argo CD (Bitnami via Helm)
+echo "📦 Installing Argo CD..."
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
 
-# 10. Update /etc/hosts
-MINIKUBE_IP=$(minikube ip)
-HOST_ENTRY="$MINIKUBE_IP atelier.local"
+helm upgrade --install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  -f argocd/values.yaml
 
-echo "📝 Ensuring /etc/hosts contains: $HOST_ENTRY"
-if ! grep -q "atelier.local" /etc/hosts; then
-  echo "$HOST_ENTRY" | sudo tee -a /etc/hosts
-else
-  echo "ℹ️ /etc/hosts already contains atelier.local"
-fi
+# 9. Wait for ArgoCD to be healthy
+wait_for_namespace_deploys argocd
 
-# 11. Set Argo CD admin password
-ARGOCD_PASS="Aa@12341234"
-HASH=$(htpasswd -nbBC 10 "" "$ARGOCD_PASS" | tr -d ':\n')
+# 10. Apply ArgoCD ingress
+echo "🌍 Applying ArgoCD Ingress..."
+kubectl apply -f argocd/ingress.yaml
 
-kubectl -n argocd patch secret argocd-secret \
-  -p "{\"stringData\": {\"admin.password\": \"$HASH\", \"admin.passwordMtime\": \"$(date +%FT%T%Z)\"}}"
+# 11. Apply App of Apps (root application for ArgoCD)
+echo "📂 Applying ArgoCD App of Apps..."
+kubectl apply -f argocd/app-of-apps.yaml
 
-kubectl -n argocd rollout restart deploy argocd-server
-
-echo "🔑 Argo CD admin password set to: $ARGOCD_PASS"
-
-echo "✅ Atelier bootstrap finished!"
-
-echo "👉 Open https://atelier.local/argocd in your browser."
+echo "✅ Bootstrap completed successfully!"
+echo "👉 Run 'minikube tunnel' in a separate terminal"
+echo "👉 Access ArgoCD at: https://localhost/argocd"

@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: 'https://github.com/hasaady/k8s-homelab.git'
     targetRevision: main
-    path: argocd/children
+    path: workloads
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -16,3 +16,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

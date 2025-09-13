@@ -1,0 +1,6 @@
+server:
+  service:
+    type: ClusterIP
+configs:
+  secret:
+    argocdServerAdminPassword: "$2a$10$rZztN.cszB/CooSKB2t0H.hK5u.IooSj4Y0mlqaNmWnlHnjJm5FTe"
