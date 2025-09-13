@@ -3,6 +3,66 @@
 A local Kubernetes **dev environment** built with **Minikube** for experimenting, development, and reproducible demos.  
 All manifests and Helm values are versioned here so the entire environment can be spun up on any machine with a single script.
 
+```mermaid
+flowchart TB
+
+    subgraph Minikube["Cluster"]
+        subgraph ingress["Ingress"]
+            NGINX["NGINX Ingress Controller"]
+        end
+
+        subgraph cert["Cert-Manager"]
+            CM["cert-manager"]
+            CI["ClusterIssuer: selfsigned-root"]
+            CERT["Certificate: localhost-cert"]
+        end
+
+        subgraph gitops["ArgoCD"]
+            ACD["ArgoCD Server"]
+            APP["App-of-Apps Root Application"]
+            WF["workloads/ (GitOps folder)"]
+        end
+
+        subgraph persistence["Persistence"]
+            DB["Postgres / MSSQL / MongoDB / Redis / MinIO"]
+        end
+
+        subgraph kafka["Apache Kafka"]
+            KAFKA["Kafka (KRaft)"]
+            CONNECT["Kafka Connect + Plugins"]
+            SR["Schema Registry"]
+            UI["Kafka UI"]
+        end
+
+        subgraph obs["Observability"]
+            PROM["Prometheus"]
+            GRAF["Grafana"]
+            SEQ["Seq"]
+            OTEL["OpenTelemetry Collector"]
+        end
+
+        subgraph apps["Apps"]
+            APP1["app1"]
+        end
+    end
+
+    %% Relationships
+    NGINX -->|Ingress Routes| ACD
+    NGINX -->|Ingress Routes| GRAF
+    NGINX -->|Ingress Routes| UI
+    NGINX -->|Ingress Routes| APP1
+
+    CI --> CERT
+    CERT -.-> NGINX
+
+    ACD --> APP
+    APP --> WF
+    WF --> persistence
+    WF --> kafka
+    WF --> obs
+    WF --> apps
+````
+
 ## Prerequisites
 
 Make sure you have the following installed locally:
@@ -67,68 +127,7 @@ Optional (recommended):
 
     TLS is handled by **cert-manager** with the single `localhost-ca-issuer`.
 
-
-```mermaid
-flowchart TB
-
-    subgraph Minikube["Cluster"]
-        subgraph ingress["Ingress"]
-            NGINX["NGINX Ingress Controller"]
-        end
-
-        subgraph cert["Cert-Manager"]
-            CM["cert-manager"]
-            CI["ClusterIssuer: selfsigned-root"]
-            CERT["Certificate: localhost-cert"]
-        end
-
-        subgraph gitops["ArgoCD"]
-            ACD["ArgoCD Server"]
-            APP["App-of-Apps Root Application"]
-            WF["workloads/ (GitOps folder)"]
-        end
-
-        subgraph persistence["Persistence"]
-            DB["Postgres / MSSQL / MongoDB / Redis / MinIO"]
-        end
-
-        subgraph kafka["Apache Kafka"]
-            KAFKA["Kafka (KRaft)"]
-            CONNECT["Kafka Connect + Plugins"]
-            SR["Schema Registry"]
-            UI["Kafka UI"]
-        end
-
-        subgraph obs["Observability"]
-            PROM["Prometheus"]
-            GRAF["Grafana"]
-            SEQ["Seq"]
-            OTEL["OpenTelemetry Collector"]
-        end
-
-        subgraph apps["Apps"]
-            APP1["app1"]
-        end
-    end
-
-    %% Relationships
-    NGINX -->|Ingress Routes| ACD
-    NGINX -->|Ingress Routes| GRAF
-    NGINX -->|Ingress Routes| UI
-    NGINX -->|Ingress Routes| APP1
-
-    CI --> CERT
-    CERT -.-> NGINX
-
-    ACD --> APP
-    APP --> WF
-    WF --> persistence
-    WF --> kafka
-    WF --> obs
-    WF --> apps
-````
-
-### Key Design Choices:
+## Key Design Choices:
 - **Path-based ingress** → everything is accessible under `https://localhost/<app>` (e.g. `/argocd`, `/grafana`).
 - **Cert-manager self-signed issuer** → single `localhost-cert` shared by all ingresses.
 - **ArgoCD App-of-Apps pattern** → GitOps deploys workloads from the `workloads/` folder.
